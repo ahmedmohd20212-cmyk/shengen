@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تقييم أهلية فيزا شنجن</title>
+<style>
+*{box-sizing:border-box;font-family:Tahoma,Arial,sans-serif}
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#0f2a4a,#1d5c8a);display:flex;align-items:center;justify-content:center;color:#1b2a3a}
+.card{background:#fff;width:92%;max-width:480px;border-radius:18px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,.3);overflow:hidden;margin:16px 0}
+.bar{height:6px;background:#e6edf3;border-radius:6px;margin-bottom:24px}
+.bar div{height:100%;width:0;background:#1d9a6c;border-radius:6px;transition:width .4s}
+.q{animation:in .4s ease}
+@keyframes in{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+h2{font-size:21px;margin:0 0 20px;line-height:1.6}
+.opt{display:block;width:100%;padding:14px;margin-bottom:10px;border:2px solid #d5e0ea;border-radius:12px;background:#f7fafc;font-size:17px;cursor:pointer;transition:.2s}
+.opt:hover{border-color:#1d5c8a;background:#eaf3fa}
+.res{text-align:center}
+.pct{font-size:56px;font-weight:bold}
+.ok{color:#1d9a6c}.no{color:#d64545}
+.btn{display:inline-block;margin-top:14px;padding:13px 26px;background:#1d9a6c;color:#fff;border-radius:12px;text-decoration:none;font-size:17px;border:0;cursor:pointer;width:100%}
+.btn.blue{background:#1d5c8a}
+ul{text-align:right;padding-right:20px}
+input[type=text],input[type=tel]{width:100%;padding:14px;border:2px solid #d5e0ea;border-radius:12px;font-size:17px;margin-bottom:12px}
+input:focus,textarea:focus{outline:none;border-color:#1d5c8a}
+textarea{width:100%;padding:14px;border:2px solid #d5e0ea;border-radius:12px;font-size:16px;margin-bottom:12px;resize:vertical}
+.consent{display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.6;margin:6px 0 4px;color:#4a5b6b}
+.consent input{margin-top:4px}
+.err{color:#d64545;font-size:14px;min-height:20px;margin:6px 0 0}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="bar"><div id="p"></div></div>
+  <div id="box"></div>
+</div>
+<script>
+/* ===== إعدادات لازم تعدلها ===== */
+// 1) لينك Google Apps Script بعد ما تنشره (الخطوات في ملف التعليمات)
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzwRIbwVMnRTtUHTtddPMYaKxVEewpwKla7kuduGliqJJ1qfn5yrj9yzxvXlHe3MkvX/exec";
+// 2) رقم الواتساب بتاعك بالصيغة الدولية من غير + ولا أصفار (مثال مصر: 201001234567)
+const WHATSAPP_NUMBER = "351920334048";
+// 3) النسبة الحدية
+const THRESHOLD = 65;
+/* =============================== */
+
+const Q = [
+ {id:"marital", t:"ما هي حالتك الاجتماعية؟", max:20, o:[["أعزب",5],["متزوج",20]]},
+ {id:"kids", t:"هل لديك أطفال؟", max:3, o:[["نعم",3],["لا",1]], show:a=>a.marital==="متزوج"},
+ {id:"prev", t:"هل قدمت على فيزا شنجن من قبل؟", max:20, o:[["نعم",0],["لا",20]]},
+ {id:"rej", t:"هل تعرضت لرفض من قبل؟", max:18, o:[["نعم",5],["لا",18]], show:a=>a.prev==="نعم"},
+ {id:"rejwhy", t:"ما سبب الرفض السابق؟", max:6, o:[["شكوك في العودة لمصر",2],["عدم مصداقية الأوراق",0],["عدم توضيح غرض السفر",4],["سبب آخر أو لا أعرف",3]], show:a=>a.rej==="نعم"},
+ {id:"got", t:"هل حصلت على شنجن من قبل؟", max:4, o:[["نعم",4],["لا",0]], show:a=>a.prev==="نعم" && a.rej==="لا"},
+ {id:"bank", t:"هل لديك حساب بنكي عليه حركة سحب وإيداع آخر 6 شهور؟", max:25, o:[["نعم",25],["لا",3]]},
+ {id:"bank2", t:"هل لديك أكثر من حساب بنكي؟", max:3, o:[["نعم",3],["لا",1]]},
+ {id:"work", t:"ما هو إثبات عملك؟", max:20, o:[["خطاب HR",20],["سجل تجاري وبطاقة ضريبية",14],["لا يوجد",0]]},
+ {id:"cr", t:"كم مرّ على السجل التجاري؟", max:6, o:[["أقل من سنة",1],["من سنة إلى 3 سنوات",4],["أكثر من 3 سنوات",6]], show:a=>a.work==="سجل تجاري وبطاقة ضريبية"},
+ {id:"prop", t:"هل تمتلك عقارات أو أملاك؟", max:5, o:[["نعم",5],["لا",0]]},
+ {id:"trav", t:"هل سافرت خارج مصر من قبل (غير شنجن)؟", max:6, o:[["نعم",6],["لا",1]]},
+ {id:"dest", t:"هل تحتاج السفر لدولة شنجن معينة؟", max:0, o:[["نعم",0],["لا",0]]}
+];
+let ans={}, score={}, step=0, lead={name:"",phone:"",notes:""}, sent=false;
+const box=document.getElementById("box"), bar=document.getElementById("p");
+function visible(q){ return !q.show || q.show(ans); }
+
+function next(){
+  while(step<Q.length && !visible(Q[step])) step++;
+  if(step>=Q.length) return notes();
+  const q=Q[step];
+  bar.style.width=(step/(Q.length+2)*100)+"%";
+  box.innerHTML='<div class="q"><h2>'+q.t+'</h2>'+q.o.map((o,i)=>'<button class="opt" onclick="pick('+i+')">'+o[0]+'</button>').join("")+'</div>';
+}
+function pick(i){
+  const q=Q[step], o=q.o[i];
+  ans[q.id]=o[0];
+  score[q.id]=o[1];
+  step++; next();
+}
+
+function notes(){
+  bar.style.width="85%";
+  box.innerHTML='<div class="q"><h2>حابب تضيف أي بيانات أو حاجة خاصة بحالتك؟</h2>'+
+   '<textarea id="nt" rows="5" placeholder="اختياري: اكتب أي تفاصيل تحب نعرفها عن حالتك"></textarea>'+
+   '<button class="btn" onclick="saveNotes()">التالي</button></div>';
+}
+function saveNotes(){
+  lead.notes=document.getElementById("nt").value.trim().slice(0,1000);
+  contact();
+}
+
+function contact(){
+  bar.style.width="92%";
+  box.innerHTML='<div class="q"><h2>آخر خطوة: بياناتك للتواصل</h2>'+
+   '<input type="text" id="nm" placeholder="الاسم" autocomplete="name">'+
+   '<input type="tel" id="ph" placeholder="رقم الواتساب (مثال: 01001234567)" autocomplete="tel" inputmode="tel">'+
+   '<label class="consent"><input type="checkbox" id="ck"><span>أوافق على حفظ بياناتي وإجاباتي والتواصل معي بخصوص طلبي.</span></label>'+
+   '<div class="err" id="er"></div>'+
+   '<button class="btn" onclick="submitContact()">اعرف نتيجتك</button></div>';
+}
+function submitContact(){
+  const nm=document.getElementById("nm").value.trim();
+  let ph=document.getElementById("ph").value.replace(/[\s\-()+]/g,"");
+  const er=document.getElementById("er");
+  if(nm.length<2){er.textContent="من فضلك اكتب اسمك";return;}
+  if(!/^\d{10,15}$/.test(ph)){er.textContent="رقم الواتساب غير صحيح";return;}
+  if(!document.getElementById("ck").checked){er.textContent="لازم توافق على حفظ البيانات للمتابعة";return;}
+  lead.name=nm; lead.phone=ph;
+  result();
+}
+
+function waLink(text){
+  return "https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(text);
+}
+
+function result(){
+  bar.style.width="100%";
+  let total=0, max=0;
+  Q.forEach(q=>{
+    if(!visible(q)) return;
+    if(q.id==="prev" && ans.prev==="نعم") return;
+    max+=q.max;
+    total+=score[q.id]||0;
+  });
+  const pct=Math.round(total/max*100);
+  const ok=pct>=THRESHOLD;
+  let weak=[];
+  if(ans.marital==="أعزب") weak.push("الحالة الاجتماعية (أعزب)");
+  if(ans.rej==="نعم") weak.push("وجود رفض سابق"+(ans.rejwhy?" ("+ans.rejwhy+")":""));
+  if(ans.bank==="لا") weak.push("لا توجد حركة بنكية آخر 6 شهور");
+  if(ans.work==="لا يوجد") weak.push("لا يوجد إثبات عمل");
+  if(ans.cr==="أقل من سنة") weak.push("سجل تجاري حديث");
+
+  sendToSheet(pct, ok, weak);
+
+  const msgOk="مرحباً، أنا "+lead.name+". نتيجة تقييم ملفي "+pct+"% وأريد البدء في التقديم على فيزا شنجن.";
+  const msgNo="مرحباً، أنا "+lead.name+". نتيجة تقييم ملفي "+pct+"% وأريد حجز استشارة لمعالجة نقاط الضعف في ملفي.";
+
+  box.innerHTML='<div class="res q"><div class="pct '+(ok?'ok':'no')+'">'+pct+'%</div>'+
+   (ok?'<h2>ملفك مؤهل مبدئياً للتقديم</h2><a class="btn" target="_blank" rel="noopener" href="'+waLink(msgOk)+'">ابدأ التقديم عبر واتساب</a>'
+      :'<h2>نسبة القبول أقل من المطلوب</h2><ul>'+weak.map(w=>'<li>'+w+'</li>').join("")+'</ul><a class="btn blue" target="_blank" rel="noopener" href="'+waLink(msgNo)+'">احجز استشارة عبر واتساب</a>')+'</div>';
+}
+
+function sendToSheet(pct, ok, weak){
+  if(sent || SHEET_URL.indexOf("http")!==0) return;
+  sent=true;
+  const headers=["الوقت","الاسم","الواتساب","النسبة","الحالة","نقاط الضعف","ملاحظات العميل"].concat(Q.map(q=>q.t));
+  const row=[new Date().toLocaleString("ar-EG"), lead.name, "'"+lead.phone, pct+"%", ok?"مؤهل":"غير مؤهل", weak.join(" | "), lead.notes||"-"]
+            .concat(Q.map(q=>ans[q.id]||"-"));
+  try{
+    fetch(SHEET_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({headers:headers,row:row})});
+  }catch(e){}
+}
+next();
+</script>
+</body>
+</html>
