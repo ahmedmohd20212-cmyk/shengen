@@ -9,17 +9,28 @@
 body{margin:0;min-height:100vh;background:linear-gradient(135deg,#0f2a4a,#1d5c8a);display:flex;align-items:center;justify-content:center;color:#1b2a3a}
 .card{background:#fff;width:92%;max-width:480px;border-radius:18px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,.3);overflow:hidden;margin:16px 0}
 .bar{height:6px;background:#e6edf3;border-radius:6px;margin-bottom:24px}
-.bar div{height:100%;width:0;background:#1d9a6c;border-radius:6px;transition:width .4s}
+.bar div{height:100%;width:0;background:#1d9a6c;border-radius:6px;transition:width .5s}
 .q{animation:in .4s ease}
 @keyframes in{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
 h2{font-size:21px;margin:0 0 20px;line-height:1.6}
 .opt{display:block;width:100%;padding:14px;margin-bottom:10px;border:2px solid #d5e0ea;border-radius:12px;background:#f7fafc;font-size:17px;cursor:pointer;transition:.2s}
 .opt:hover{border-color:#1d5c8a;background:#eaf3fa}
+.think{text-align:center;padding:26px 0 18px}
+.think p{color:#4a5b6b;font-size:17px;margin:0;min-height:26px}
+.spin{width:46px;height:46px;border:5px solid #e6edf3;border-top-color:#1d5c8a;border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 18px}
+@keyframes sp{to{transform:rotate(360deg)}}
 .res{text-align:center}
 .pct{font-size:56px;font-weight:bold}
 .ok{color:#1d9a6c}.no{color:#d64545}
-.btn{display:inline-block;margin-top:14px;padding:13px 26px;background:#1d9a6c;color:#fff;border-radius:12px;text-decoration:none;font-size:17px;border:0;cursor:pointer;width:100%}
+.rows{margin:14px 0 6px}
+.row{margin:10px 0;text-align:right}
+.row .lb{display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px;color:#33475b}
+.row .tr{height:8px;background:#e6edf3;border-radius:8px;overflow:hidden}
+.row .tr i{display:block;height:100%;width:0;border-radius:8px;transition:width 1s ease}
+.btn{display:block;margin-top:12px;padding:13px 20px;background:#1d9a6c;color:#fff;border-radius:12px;text-decoration:none;font-size:17px;border:0;cursor:pointer;width:100%;text-align:center}
 .btn.blue{background:#1d5c8a}
+.btn.wa{background:#25a244}
+.sub{font-size:15px;color:#4a5b6b;margin:6px 0 4px}
 ul{text-align:right;padding-right:20px}
 input[type=text],input[type=tel]{width:100%;padding:14px;border:2px solid #d5e0ea;border-radius:12px;font-size:17px;margin-bottom:12px}
 input:focus,textarea:focus{outline:none;border-color:#1d5c8a}
@@ -35,109 +46,154 @@ textarea{width:100%;padding:14px;border:2px solid #d5e0ea;border-radius:12px;fon
   <div id="box"></div>
 </div>
 <script>
-/* ===== إعدادات لازم تعدلها ===== */
-// 1) لينك Google Apps Script بعد ما تنشره (الخطوات في ملف التعليمات)
+/* ===== إعدادات ===== */
 const SHEET_URL = "https://script.google.com/macros/s/AKfycbzwRIbwVMnRTtUHTtddPMYaKxVEewpwKla7kuduGliqJJ1qfn5yrj9yzxvXlHe3MkvX/exec";
-// 2) رقم الواتساب بتاعك بالصيغة الدولية من غير + ولا أصفار (مثال مصر: 201001234567)
-const WHATSAPP_NUMBER = "351920334048";
-// 3) النسبة الحدية
+const CONTACTS = [
+  {name:"أستاذة دنيا", phone:"966541148043"},
+  {name:"أستاذ محمد",  phone:"351920334048"}
+];
 const THRESHOLD = 65;
-/* =============================== */
+/* =================== */
 
 const Q = [
- {id:"marital", t:"ما هي حالتك الاجتماعية؟", max:20, o:[["أعزب",5],["متزوج",20]]},
- {id:"kids", t:"هل لديك أطفال؟", max:3, o:[["نعم",3],["لا",1]], show:a=>a.marital==="متزوج"},
- {id:"prev", t:"هل قدمت على فيزا شنجن من قبل؟", max:20, o:[["نعم",0],["لا",20]]},
- {id:"rej", t:"هل تعرضت لرفض من قبل؟", max:18, o:[["نعم",5],["لا",18]], show:a=>a.prev==="نعم"},
- {id:"rejwhy", t:"ما سبب الرفض السابق؟", max:6, o:[["شكوك في العودة لمصر",2],["عدم مصداقية الأوراق",0],["عدم توضيح غرض السفر",4],["سبب آخر أو لا أعرف",3]], show:a=>a.rej==="نعم"},
- {id:"got", t:"هل حصلت على شنجن من قبل؟", max:4, o:[["نعم",4],["لا",0]], show:a=>a.prev==="نعم" && a.rej==="لا"},
- {id:"bank", t:"هل لديك حساب بنكي عليه حركة سحب وإيداع آخر 6 شهور؟", max:25, o:[["نعم",25],["لا",3]]},
- {id:"bank2", t:"هل لديك أكثر من حساب بنكي؟", max:3, o:[["نعم",3],["لا",1]]},
- {id:"work", t:"ما هو إثبات عملك؟", max:20, o:[["خطاب HR",20],["سجل تجاري وبطاقة ضريبية",14],["لا يوجد",0]]},
- {id:"cr", t:"كم مرّ على السجل التجاري؟", max:6, o:[["أقل من سنة",1],["من سنة إلى 3 سنوات",4],["أكثر من 3 سنوات",6]], show:a=>a.work==="سجل تجاري وبطاقة ضريبية"},
- {id:"prop", t:"هل تمتلك عقارات أو أملاك؟", max:5, o:[["نعم",5],["لا",0]]},
- {id:"trav", t:"هل سافرت خارج مصر من قبل (غير شنجن)؟", max:6, o:[["نعم",6],["لا",1]]},
- {id:"dest", t:"هل تحتاج السفر لدولة شنجن معينة؟", max:0, o:[["نعم",0],["لا",0]]}
+ {id:"marital", t:"ما هي حالتك الاجتماعية؟", o:["أعزب","متزوج"]},
+ {id:"kids", t:"هل لديك أطفال؟", o:["نعم","لا"], show:a=>a.marital==="متزوج"},
+ {id:"age", t:"كم عمرك؟", o:["أصغر من 20","20 - 25","26 - 29","30 - 40","أكبر من 40"]},
+ {id:"gov", t:"في أي محافظة تقيم؟", o:["بحيرة / إسكندرية / مطروح","محافظة أخرى (القاهرة، الغربية ... إلخ)"]},
+ {id:"prev", t:"هل قدمت على فيزا شنجن من قبل؟", o:["نعم","لا"]},
+ {id:"rej", t:"هل تعرضت لرفض من قبل؟", o:["نعم","لا"], show:a=>a.prev==="نعم"},
+ {id:"rejwhy", t:"ما سبب الرفض السابق؟", o:["شكوك في العودة لمصر","عدم مصداقية الأوراق","عدم توضيح غرض السفر","سبب آخر أو لا أعرف"], show:a=>a.rej==="نعم"},
+ {id:"got", t:"هل حصلت على شنجن من قبل؟", o:["نعم","لا"], show:a=>a.prev==="نعم" && a.rej==="لا"},
+ {id:"bank", t:"هل لديك حساب بنكي عليه حركة سحب وإيداع آخر 6 شهور؟", o:["نعم","لا"]},
+ {id:"bank2", t:"هل لديك أكثر من حساب بنكي؟", o:["نعم","لا"], show:a=>a.bank==="نعم"},
+ {id:"work", t:"ما هو إثبات عملك؟", o:["خطاب HR","سجل تجاري وبطاقة ضريبية","لا يوجد"]},
+ {id:"cr", t:"كم مرّ على السجل التجاري؟", o:["أقل من سنة","من سنة إلى سنة ونصف","أكثر من سنة ونصف"], show:a=>a.work==="سجل تجاري وبطاقة ضريبية"},
+ {id:"prop", t:"هل تمتلك عقارات أو أملاك؟", o:["نعم","لا"]},
+ {id:"trav", t:"هل سافرت خارج مصر من قبل (غير شنجن)؟", o:["نعم","لا"]},
+ {id:"dest", t:"هل تحتاج السفر لدولة شنجن معينة؟", o:["نعم","لا"]}
 ];
-let ans={}, score={}, step=0, lead={name:"",phone:"",notes:""}, sent=false;
+
+/* ===== حساب النسبة: المجموع 100 =====
+   الحساب البنكي 28، الحالة الاجتماعية والأطفال 18، إثبات العمل 18،
+   سجل الشنجن 16، السن 14، الأملاك والسفر 6 ===== */
+function calc(a){
+  const ageS={"أصغر من 20":0,"20 - 25":4,"26 - 29":10,"30 - 40":14,"أكبر من 40":8};
+  const bank=a.bank==="نعم";
+  let work=0;
+  if(a.work==="خطاب HR") work=18;
+  else if(a.work==="سجل تجاري وبطاقة ضريبية")
+    work={"أقل من سنة":5,"من سنة إلى سنة ونصف":11,"أكثر من سنة ونصف":18}[a.cr]||0;
+  let hist;
+  if(a.prev==="لا") hist=16;
+  else if(a.rej==="لا") hist=a.got==="نعم"?16:11;
+  else hist=({"عدم توضيح غرض السفر":5,"شكوك في العودة لمصر":3,"عدم مصداقية الأوراق":0,"سبب آخر أو لا أعرف":2}[a.rejwhy]||0);
+  const groups=[
+    {label:"السن", got:ageS[a.age]||0, max:14},
+    {label:"الحالة الاجتماعية والأطفال", got:a.marital==="متزوج"?(14+(a.kids==="نعم"?4:2)):0, max:18},
+    {label:"الحساب البنكي", got:(bank?26:0)+(bank&&a.bank2==="نعم"?2:0), max:28},
+    {label:"إثبات العمل", got:work, max:18},
+    {label:"سجل الشنجن", got:hist, max:16},
+    {label:"الأملاك والسفر", got:(a.prop==="نعم"?3:0)+(a.trav==="نعم"?3:0), max:6}
+  ];
+  const got=groups.reduce((s,g)=>s+g.got,0), max=groups.reduce((s,g)=>s+g.max,0);
+  return {pct:Math.round(got/max*100), groups:groups};
+}
+function weakList(a){
+  const w=[];
+  if(a.marital==="أعزب") w.push("الحالة الاجتماعية (أعزب)");
+  if(a.marital==="متزوج" && a.kids==="لا") w.push("لا يوجد أطفال");
+  if(a.age==="أصغر من 20"||a.age==="20 - 25") w.push("السن صغير نسبياً");
+  if(a.age==="أكبر من 40") w.push("السن أكبر من 40");
+  if(a.rej==="نعم") w.push("وجود رفض سابق"+(a.rejwhy?" ("+a.rejwhy+")":""));
+  if(a.bank==="لا") w.push("لا توجد حركة بنكية آخر 6 شهور");
+  if(a.work==="لا يوجد") w.push("لا يوجد إثبات عمل");
+  if(a.cr==="أقل من سنة"||a.cr==="من سنة إلى سنة ونصف") w.push("السجل التجاري حديث (أقل من سنة ونصف)");
+  return w;
+}
+
+let ans={}, step=0, lead={name:"",phone:"",notes:""}, sent=false, busy=false;
 const box=document.getElementById("box"), bar=document.getElementById("p");
 function visible(q){ return !q.show || q.show(ans); }
+
+/* شاشة "بيفكر" بين الأسئلة */
+const THINK=["جاري تحليل إجابتك...","نراجع بياناتك...","لحظة من فضلك...","نقارن بياناتك بمعايير القبول...","نجهز السؤال التالي..."];
+function think(msgs, total, cb){
+  busy=true;
+  box.innerHTML='<div class="think q"><div class="spin"></div><p id="tm">'+msgs[0]+'</p></div>';
+  let i=0;
+  const iv=setInterval(()=>{ i=(i+1)%msgs.length; const e=document.getElementById("tm"); if(e) e.textContent=msgs[i]; }, Math.max(700,total/msgs.length));
+  setTimeout(()=>{ clearInterval(iv); busy=false; cb(); }, total);
+}
 
 function next(){
   while(step<Q.length && !visible(Q[step])) step++;
   if(step>=Q.length) return notes();
   const q=Q[step];
-  bar.style.width=(step/(Q.length+2)*100)+"%";
-  box.innerHTML='<div class="q"><h2>'+q.t+'</h2>'+q.o.map((o,i)=>'<button class="opt" onclick="pick('+i+')">'+o[0]+'</button>').join("")+'</div>';
+  bar.style.width=(step/(Q.length+2)*90)+"%";
+  box.innerHTML='<div class="q"><h2>'+q.t+'</h2>'+q.o.map((o,i)=>'<button class="opt" onclick="pick('+i+')">'+o+'</button>').join("")+'</div>';
 }
 function pick(i){
-  const q=Q[step], o=q.o[i];
-  ans[q.id]=o[0];
-  score[q.id]=o[1];
-  step++; next();
+  if(busy) return;
+  ans[Q[step].id]=Q[step].o[i];
+  step++;
+  const m=[THINK[Math.floor(Math.random()*3)], THINK[3+Math.floor(Math.random()*2)]];
+  think(m, 1000+Math.floor(Math.random()*400), next);
 }
 
 function notes(){
-  bar.style.width="85%";
+  bar.style.width="88%";
   box.innerHTML='<div class="q"><h2>حابب تضيف أي بيانات أو حاجة خاصة بحالتك؟</h2>'+
    '<textarea id="nt" rows="5" placeholder="اختياري: اكتب أي تفاصيل تحب نعرفها عن حالتك"></textarea>'+
-   '<button class="btn" onclick="saveNotes()">التالي</button></div>';
+   '<button class="btn blue" onclick="saveNotes()">التالي</button></div>';
 }
 function saveNotes(){
   lead.notes=document.getElementById("nt").value.trim().slice(0,1000);
   contact();
 }
-
 function contact(){
-  bar.style.width="92%";
+  bar.style.width="94%";
   box.innerHTML='<div class="q"><h2>آخر خطوة: بياناتك للتواصل</h2>'+
    '<input type="text" id="nm" placeholder="الاسم" autocomplete="name">'+
    '<input type="tel" id="ph" placeholder="رقم الواتساب (مثال: 01001234567)" autocomplete="tel" inputmode="tel">'+
    '<label class="consent"><input type="checkbox" id="ck"><span>أوافق على حفظ بياناتي وإجاباتي والتواصل معي بخصوص طلبي.</span></label>'+
    '<div class="err" id="er"></div>'+
-   '<button class="btn" onclick="submitContact()">اعرف نتيجتك</button></div>';
+   '<button class="btn blue" onclick="submitContact()">اعرف نتيجتك</button></div>';
 }
 function submitContact(){
   const nm=document.getElementById("nm").value.trim();
-  let ph=document.getElementById("ph").value.replace(/[\s\-()+]/g,"");
+  const ph=document.getElementById("ph").value
+    .replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\s\-()+]/g,"");
   const er=document.getElementById("er");
   if(nm.length<2){er.textContent="من فضلك اكتب اسمك";return;}
   if(!/^\d{10,15}$/.test(ph)){er.textContent="رقم الواتساب غير صحيح";return;}
   if(!document.getElementById("ck").checked){er.textContent="لازم توافق على حفظ البيانات للمتابعة";return;}
   lead.name=nm; lead.phone=ph;
-  result();
+  think(["جاري حساب نسبة القبول...","نراجع نقاط القوة والضعف في ملفك...","نجهز تقريرك..."], 3000, result);
 }
 
-function waLink(text){
-  return "https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(text);
-}
+function waLink(phone,text){ return "https://wa.me/"+phone+"?text="+encodeURIComponent(text); }
 
 function result(){
   bar.style.width="100%";
-  let total=0, max=0;
-  Q.forEach(q=>{
-    if(!visible(q)) return;
-    if(q.id==="prev" && ans.prev==="نعم") return;
-    max+=q.max;
-    total+=score[q.id]||0;
-  });
-  const pct=Math.round(total/max*100);
-  const ok=pct>=THRESHOLD;
-  let weak=[];
-  if(ans.marital==="أعزب") weak.push("الحالة الاجتماعية (أعزب)");
-  if(ans.rej==="نعم") weak.push("وجود رفض سابق"+(ans.rejwhy?" ("+ans.rejwhy+")":""));
-  if(ans.bank==="لا") weak.push("لا توجد حركة بنكية آخر 6 شهور");
-  if(ans.work==="لا يوجد") weak.push("لا يوجد إثبات عمل");
-  if(ans.cr==="أقل من سنة") weak.push("سجل تجاري حديث");
-
+  const r=calc(ans), pct=r.pct, ok=pct>=THRESHOLD, weak=weakList(ans);
   sendToSheet(pct, ok, weak);
-
-  const msgOk="مرحباً، أنا "+lead.name+". نتيجة تقييم ملفي "+pct+"% وأريد البدء في التقديم على فيزا شنجن.";
-  const msgNo="مرحباً، أنا "+lead.name+". نتيجة تقييم ملفي "+pct+"% وأريد حجز استشارة لمعالجة نقاط الضعف في ملفي.";
-
-  box.innerHTML='<div class="res q"><div class="pct '+(ok?'ok':'no')+'">'+pct+'%</div>'+
-   (ok?'<h2>ملفك مؤهل مبدئياً للتقديم</h2><a class="btn" target="_blank" rel="noopener" href="'+waLink(msgOk)+'">ابدأ التقديم عبر واتساب</a>'
-      :'<h2>نسبة القبول أقل من المطلوب</h2><ul>'+weak.map(w=>'<li>'+w+'</li>').join("")+'</ul><a class="btn blue" target="_blank" rel="noopener" href="'+waLink(msgNo)+'">احجز استشارة عبر واتساب</a>')+'</div>';
+  const body=" أنا "+lead.name+". نتيجة تقييم ملفي "+pct+"% "+
+    (ok?"وأريد البدء في إجراءات التقديم على فيزا شنجن.":"وأريد حجز استشارة لمعالجة نقاط الضعف في ملفي.");
+  const btns=CONTACTS.map(c=>'<a class="btn wa" target="_blank" rel="noopener" href="'+waLink(c.phone,"مرحباً "+c.name+"،"+body)+'">تواصل مع '+c.name+'</a>').join("");
+  const rows=r.groups.map(g=>{
+    const k=g.got/g.max, col=k>=0.75?"#1d9a6c":(k>=0.5?"#e0a020":"#d64545");
+    return '<div class="row"><div class="lb"><span>'+g.label+'</span><span>'+g.got+' / '+g.max+'</span></div><div class="tr"><i data-w="'+Math.round(k*100)+'" style="background:'+col+'"></i></div></div>';
+  }).join("");
+  box.innerHTML='<div class="res q"><div class="pct '+(ok?'ok':'no')+'"><span id="pn">0</span>%</div>'+
+   '<h2>'+(ok?'ملفك مؤهل مبدئياً للتقديم':'نسبة القبول أقل من المطلوب')+'</h2>'+
+   '<div class="rows">'+rows+'</div>'+
+   (ok?'<p class="sub">تواصل مع أحد المستشارين لبدء التقديم:</p>'
+      :(weak.length?'<p class="sub">نقاط تحتاج معالجة:</p><ul>'+weak.map(w=>'<li>'+w+'</li>').join("")+'</ul>':'')+'<p class="sub">احجز استشارة مع أحد المستشارين لمعالجة نقاط الضعف:</p>')+
+   btns+'</div>';
+  // أنيميشن الأرقام والأشرطة
+  const t0=performance.now(), pn=document.getElementById("pn");
+  (function tick(t){ const k=Math.min(1,(t-t0)/1100); pn.textContent=Math.round(pct*k); if(k<1) requestAnimationFrame(tick); })(t0);
+  setTimeout(()=>document.querySelectorAll(".tr i").forEach(e=>e.style.width=e.dataset.w+"%"),60);
 }
 
 function sendToSheet(pct, ok, weak){
@@ -147,7 +203,7 @@ function sendToSheet(pct, ok, weak){
   const row=[new Date().toLocaleString("ar-EG"), lead.name, "'"+lead.phone, pct+"%", ok?"مؤهل":"غير مؤهل", weak.join(" | "), lead.notes||"-"]
             .concat(Q.map(q=>ans[q.id]||"-"));
   try{
-    fetch(SHEET_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({headers:headers,row:row})});
+    fetch(SHEET_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({headers:headers,row:row})}).catch(()=>{});
   }catch(e){}
 }
 next();
